@@ -19,8 +19,8 @@ except ImportError:
     pass
 
 # Змінні середовища
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-WEBAPP_URL = os.getenv("WEBAPP_URL", "")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8352289810:AAGP6zB_zMd9UMra1vxc-fgMv2m-hr8piG4")
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://perky-jump-bot-production.up.railway.app")
 
 # Ініціалізуємо базу даних SQLite
 def init_db():
@@ -157,3 +157,4 @@ if __name__ == '__main__':
     # та вебхуки від Telegram.
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port)
+
