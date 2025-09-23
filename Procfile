@@ -1,1 +1,1 @@
-web: gunicorn web_app:app
+web: gunicorn --worker-class gevent --bind 0.0.0.0:$PORT web_app:create_app()
