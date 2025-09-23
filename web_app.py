@@ -135,18 +135,23 @@ def save_stats():
 
 # ---- Налаштування webhook для Flask ----
 @app.route('/', methods=['POST'])
-def webhook():
+async def webhook():
     """Обробляє оновлення від Telegram, надсилаючи їх в Application бота."""
     update_data = request.get_json(force=True)
     update = Update.de_json(update_data, application.bot)
     
-    # Використовуємо application.process_update() для обробки оновлення
-    application.process_update(update)
+    # Тепер використовуємо await, оскільки process_update є асинхронним
+    await application.process_update(update)
     return 'ok'
 
 if __name__ == '__main__':
     # Ініціалізуємо БД
     init_db()
+
+    # Встановлюємо webhook, оскільки ми запускаємо bot-частину через Flask-webhook
+    async def run_bot():
+        webhook_url = f"{WEBAPP_URL}/{BOT_TOKEN}"
+        await application.bot.set_webhook(url=webhook_url)
 
     # Запускаємо веб-сервер Flask, який буде обробляти запити з гри
     # та вебхуки від Telegram.
