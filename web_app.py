@@ -13,7 +13,7 @@ except ImportError:
     print("Модуль python-dotenv не знайдено. Будуть використані змінні середовища системи.")
 
 # Змінні середовища з вашого запиту
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7510044716:AAEsQS5DmtDcdR78hTOfHyNnb8Nou9IHO1Q")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8352289810:AAGP6zB_zMd9UMra1vxc-fgMv2m-hr8piG4")
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://perky-jump-bot-production.up.railway.app")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook?url={WEBAPP_URL}/webhook")
 
@@ -143,4 +143,5 @@ if __name__ == '__main__':
                           port=port,
                           url_path=f"/{BOT_TOKEN}")
     updater.bot.set_webhook(f"{WEBAPP_URL}/{BOT_TOKEN}")
+
     updater.idle()
