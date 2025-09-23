@@ -142,3 +142,4 @@ if __name__ == '__main__':
     # в локальному середовищі або на більшості хостингів.
     # Якщо ви використовуєте webhook, використовуйте updater.start_webhook(...)
     updater.start_polling()
+
