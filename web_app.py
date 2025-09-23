@@ -1,8 +1,7 @@
 import os
 import sqlite3
-import json
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, Update
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, filters
 from flask import Flask, request, jsonify
 
 # Завантажуємо змінні середовища з файлу .env, якщо він існує
@@ -15,7 +14,6 @@ except ImportError:
 # Змінні середовища з вашого запиту
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8352289810:AAGP6zB_zMd9UMra1vxc-fgMv2m-hr8piG4")
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://perky-jump-bot-production.up.railway.app")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL", f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook?url={WEBAPP_URL}/webhook")
 
 # Ініціалізуємо базу даних SQLite
 def init_db():
@@ -76,11 +74,10 @@ def stats_command(update: Update, context: CallbackContext) -> None:
     
     update.message.reply_markdown_v2(response)
 
-# Обробка даних, що надходять з Web App
+# Обробка даних, що надходять з Web App (приклад)
 def handle_webapp_data(update: Update, context: CallbackContext) -> None:
-    # Telegram API дозволяє нам отримати web_app_data, але для збереження
-    # статистики ми використовуємо Flask, щоб обробляти POST-запити від гри.
-    # Цей обробник потрібен для інших видів даних, які можуть надходити.
+    # Цей обробник потрібен для інших видів даних, які можуть надходити
+    # безпосередньо в чат бота, але для збереження статистики ми використовуємо Flask.
     pass
 
 # ---- Налаштування Flask для обробки даних з Web App ----
@@ -98,7 +95,7 @@ def save_stats():
         if not user_id or score is None or collected_beans is None:
             return jsonify({"status": "error", "message": "Відсутні дані"}), 400
 
-        conn = sqliteite3.connect('game_stats.db')
+        conn = sqlite3.connect('game_stats.db')
         cursor = conn.cursor()
         
         # Оновлюємо статистику користувача, зберігаючи максимальну висоту
@@ -131,17 +128,17 @@ if __name__ == '__main__':
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(CommandHandler("stats", stats_command))
+    
+    # Додаємо обробник для Web App. Використовуємо оновлений синтаксис filters.
+    dispatcher.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data))
 
-    # Запускаємо веб-сервер Flask
+    # Запускаємо веб-сервер Flask, який буде обробляти запити з гри.
     # На Railway, він автоматично буде працювати на потрібному порті
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port)
 
     # Запускаємо бота
-    # Використовуємо `updater.start_webhook` для розгортання на Railway
-    updater.start_webhook(listen="0.0.0.0",
-                          port=port,
-                          url_path=f"/{BOT_TOKEN}")
-    updater.bot.set_webhook(f"{WEBAPP_URL}/{BOT_TOKEN}")
-
-    updater.idle()
+    # Використовуємо `updater.start_polling()` для простоти тестування
+    # в локальному середовищі або на більшості хостингів.
+    # Якщо ви використовуєте webhook, використовуйте updater.start_webhook(...)
+    updater.start_polling()
