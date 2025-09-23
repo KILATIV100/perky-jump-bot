@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖☕ Perky Coffee Jump</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            background: linear-gradient(180deg, #87CEEB 0%, #98FB98 100%);
+            border-radius: 0;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ui-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .ui-panel .item {
+            display: flex;
+            align-items: center;
+        }
+
+        .ui-panel .icon {
+            margin-right: 5px;
+            font-size: 1.5em;
+        }
+
+        .end-game-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 20px 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        
+        .end-game-screen h2 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .end-game-screen p {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        .end-game-screen button {
+            background: #fff;
+            color: #4b0082;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .end-game-screen button:hover {
+            background: #e0e0e0;
+        }
+        .buttons-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .achievement-notification {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            pointer-events: none;
+            z-index: 200;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div class="ui-panel">
+            <div class="item">
+                <span class="icon"> ارتفاع:</span>
+                <span id="scoreDisplay">0 м</span>
+            </div>
+            <div class="item">
+                <span class="icon">☕</span>
+                <span id="beansDisplay">0</span>
+            </div>
+        </div>
+        <div class="end-game-screen" id="endGameScreen">
+            <h2 id="finalScore">Гра завершена!</h2>
+            <p id="highScore">Новий рекорд: 0 м</p>
+            <p id="totalBeans">Зібрано зерен: 0</p>
+            <div class="buttons-container">
+                <button id="restartButton">Спробувати ще раз</button>
+                <button id="mainMenuButton">Головне меню</button>
+            </div>
+        </div>
+    </div>
+    <div class="achievement-notification" id="achievementNotification"></div>
+
+    <script>
+        // Game variables
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const beansDisplay = document.getElementById('beansDisplay');
+        const endGameScreen = document.getElementById('endGameScreen');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const highScoreDisplay = document.getElementById('highScore');
+        const totalBeansDisplay = document.getElementById('totalBeans');
+        const restartButton = document.getElementById('restartButton');
+        const mainMenuButton = document.getElementById('mainMenuButton');
+        const achievementNotification = document.getElementById('achievementNotification');
+
+        let player;
+        let platforms;
+        let gameScore;
+        let beans;
+        let lastPlatformY;
+        let isGameOver;
+        let keys = {};
+        let touchStart = null;
+        let touchEnd = null;
+        let maxJumpHeight = 150;
+        let beanSpawnRate = 0.5;
+        let playerWidth = 40;
+        let playerHeight = 40;
+        let platformWidth = 80;
+        let platformHeight = 10;
+        let gameDifficulty = 1;
+        let vibrationEnabled = true;
+
+        let gameStats = {
+            highScore: 0,
+            totalBeans: 0
+        };
+
+        let gameSettings = {
+            mode: 'classic',
+            sound: true,
+            graphics: 'normal'
+        };
+
+        // Player class
+        class Player {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = playerWidth;
+                this.height = playerHeight;
+                this.dy = 0;
+                this.onGround = false;
+                this.isJumping = false;
+            }
+
+            draw() {
+                ctx.fillStyle = '#FFD700';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+
+            update() {
+                this.y += this.dy;
+
+                if (!this.onGround) {
+                    this.dy += 0.5; // Gravity
+                }
+
+                if (this.y + this.height > canvas.height) {
+                    this.y = canvas.height - this.height;
+                    this.onGround = true;
+                    this.isJumping = false;
+                    this.dy = 0;
+                }
+            }
+
+            jump() {
+                if (this.onGround) {
+                    this.dy = -15;
+                    this.onGround = false;
+                    this.isJumping = true;
+                }
+            }
+        }
+
+        // Platform class
+        class Platform {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = platformWidth;
+                this.height = platformHeight;
+            }
+
+            draw() {
+                ctx.fillStyle = '#A0522D';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        }
+
+        // Bean class
+        class Bean {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 10;
+            }
+
+            draw() {
+                ctx.fillStyle = '#8B4513';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Initialize game
+        function init() {
+            player = new Player(canvas.width / 2 - playerWidth / 2, canvas.height - playerHeight);
+            platforms = [];
+            beans = [];
+            gameScore = 0;
+            lastPlatformY = canvas.height - 100;
+            isGameOver = false;
+
+            // Generate initial platforms
+            for (let i = 0; i < 10; i++) {
+                let x = Math.random() * (canvas.width - platformWidth);
+                let y = lastPlatformY - i * 80;
+                platforms.push(new Platform(x, y));
+            }
+        }
+
+        // Handle game over
+        function gameOver() {
+            isGameOver = true;
+            endGameScreen.style.display = 'flex';
+            finalScoreDisplay.textContent = `Ти пролетів: ${gameScore} м`;
+            totalBeansDisplay.textContent = `Зібрано зерен: ${gameStats.totalBeans}`;
+            
+            if (gameScore > gameStats.highScore) {
+                gameStats.highScore = gameScore;
+                highScoreDisplay.textContent = `Новий рекорд: ${gameStats.highScore} м`;
+                highScoreDisplay.style.color = 'gold';
+                showAchievementNotification('🏅 Новий рекорд!');
+                vibrate([200, 100, 200]);
+            } else {
+                highScoreDisplay.textContent = `Рекорд: ${gameStats.highScore} м`;
+                highScoreDisplay.style.color = '#fff';
+            }
+
+            // Save stats to server
+            saveGameStats(gameScore, gameStats.totalBeans);
+
+            saveStats();
+        }
+
+        // Game loop
+        function update() {
+            if (isGameOver) return;
+
+            // Update player
+            player.update();
+
+            // Check for collision with platforms
+            platforms.forEach(platform => {
+                if (player.dy > 0 && 
+                    player.x + player.width > platform.x &&
+                    player.x < platform.x + platform.width &&
+                    player.y + player.height > platform.y &&
+                    player.y + player.height < platform.y + platform.height + 10) {
+                    
+                    player.y = platform.y - player.height;
+                    player.onGround = true;
+                    player.isJumping = false;
+                    player.dy = 0;
+                }
+            });
+
+            // Handle player input
+            if (keys['ArrowUp'] || keys['w'] || (touchEnd && touchEnd.y < touchStart.y - 20)) {
+                player.jump();
+                touchStart = null;
+                touchEnd = null;
+            } else if (keys['ArrowLeft'] || keys['a']) {
+                player.x -= 5;
+            } else if (keys['ArrowRight'] || keys['d']) {
+                player.x += 5;
+            }
+
+            // Keep player within canvas bounds
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            // Update platforms and generate new ones
+            if (player.dy < 0) {
+                platforms.forEach(platform => {
+                    platform.y -= player.dy;
+                });
+                beans.forEach(bean => {
+                    bean.y -= player.dy;
+                });
+                gameScore += Math.abs(player.dy);
+            }
+            
+            platforms = platforms.filter(platform => platform.y < canvas.height);
+            beans = beans.filter(bean => bean.y < canvas.height);
+            
+            while (platforms.length < 10) {
+                let x = Math.random() * (canvas.width - platformWidth);
+                let y = platforms[platforms.length - 1].y - 80;
+                platforms.push(new Platform(x, y));
+                
+                // Spawn a bean
+                if (Math.random() < beanSpawnRate) {
+                    beans.push(new Bean(x + platformWidth / 2, y - 20));
+                }
+            }
+
+            // Check for bean collection
+            beans.forEach((bean, index) => {
+                if (player.x < bean.x + bean.size &&
+                    player.x + player.width > bean.x - bean.size &&
+                    player.y < bean.y + bean.size &&
+                    player.y + player.height > bean.y - bean.size) {
+                    
+                    gameStats.totalBeans++;
+                    beans.splice(index, 1);
+                    playSound('bean');
+                }
+            });
+
+            // Update UI
+            scoreDisplay.textContent = Math.floor(gameScore / 10) + ' м';
+            beansDisplay.textContent = gameStats.totalBeans;
+
+            // Check if player falls off the bottom
+            if (player.y > canvas.height) {
+                gameOver();
+            }
+        }
+
+        // Draw everything
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            player.draw();
+            platforms.forEach(platform => platform.draw());
+            beans.forEach(bean => bean.draw());
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Event listeners for game control
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            touchEnd = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+        });
+
+        // Restart and Main Menu buttons
+        restartButton.addEventListener('click', () => {
+            endGameScreen.style.display = 'none';
+            init();
+            gameLoop();
+        });
+
+        mainMenuButton.addEventListener('click', () => {
+            Telegram.WebApp.close();
+        });
+
+        // Other functions
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
+        }
+
+        // Save and load stats to local storage (will be replaced by server-side logic)
+        function saveStats() {
+            localStorage.setItem('gameStats', JSON.stringify(gameStats));
+        }
+
+        function loadStats() {
+            const savedStats = localStorage.getItem('gameStats');
+            if (savedStats) {
+                gameStats = JSON.parse(savedStats);
+            }
+        }
+
+        // Save and load settings
+        function saveSettings() {
+            localStorage.setItem('gameSettings', JSON.stringify(gameSettings));
+        }
+
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('gameSettings');
+            if (savedSettings) {
+                gameSettings = JSON.parse(savedSettings);
+            }
+        }
+
+        function showAchievementNotification(message) {
+            achievementNotification.textContent = message;
+            achievementNotification.style.opacity = 1;
+            vibrate([100]);
+            setTimeout(() => {
+                achievementNotification.style.opacity = 0;
+            }, 3000);
+        }
+
+        // Vibration function
+        function vibrate(pattern) {
+            if (vibrationEnabled && navigator.vibrate) {
+                navigator.vibrate(pattern);
+            }
+        }
+        
+        // Sound effect function (placeholder)
+        function playSound(soundName) {
+            if (gameSettings.sound) {
+                // Sound effects would be implemented here
+                // For now, we'll use vibration as feedback
+                vibrate([50]);
+            }
+        }
+        
+        // Initialize game
+        resizeCanvas();
+        loadStats();
+        loadSettings();
+    </script>
+    <script>
+        // --- Цей блок додано для інтеграції з Telegram та бекендом ---
+        
+        /**
+         * Функція для збереження статистики гри на бекенді.
+         * Ця функція має викликатися в кінці гри, щоб відправити результати на сервер.
+         * * @param {number} score - Фінальний рахунок (висота).
+         * @param {number} collected_beans - Кількість зібраних зерен.
+         */
+        function saveGameStats(score, collected_beans) {
+            // Перевіряємо, чи доступні дані Web App
+            if (!Telegram.WebApp.initDataUnsafe || !Telegram.WebApp.initDataUnsafe.user) {
+                console.error('Дані користувача Telegram Web App недоступні. Неможливо зберегти статистику.');
+                return;
+            }
+            
+            const user_id = Telegram.WebApp.initDataUnsafe.user.id;
+            
+            // Відправляємо дані на наш бекенд
+            fetch('https://perky-jump-bot-production.up.railway.app/save_stats', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: user_id,
+                    score: score,
+                    collected_beans: collected_beans
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Статистика збережена:', data);
+            })
+            .catch(error => {
+                console.error('Помилка при збереженні статистики:', error);
+            });
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'983b1d9a5640b379',t:'MTc1ODY0MTc2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange;document.onreadystatechange=function(b){e&&e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
