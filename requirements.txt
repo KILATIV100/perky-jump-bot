@@ -1,6 +1,16 @@
 Flask==2.3.3
-python-telegram-bot==20.7
+Flask-CORS==4.0.0
+python-telegram-bot==20.6
 requests==2.31.0
+python-dotenv==1.0.0
+gunicorn==21.2.0
+psycopg2-binary==2.9.7
+SQLAlchemy==2.0.21
+Flask-SQLAlchemy==3.0.5
+Flask-Migrate==4.0.5
+redis==5.0.0
+celery==5.3.2
+APScheduler==3.10.4
 sqlite3
 asyncio
 threading
