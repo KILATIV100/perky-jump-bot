@@ -1,1 +1,1 @@
-web: gunicorn --worker-class gevent --bind 0.0.0.0:$PORT web_app:app
+web: python bot.py
